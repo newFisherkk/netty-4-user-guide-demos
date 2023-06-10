@@ -67,4 +67,6 @@ public class ByteBufferDemo {
 		System.out.println("limit：" + buffer.limit());
 		System.out.println("capacity：" + buffer.capacity());
 	}
+
+
 }

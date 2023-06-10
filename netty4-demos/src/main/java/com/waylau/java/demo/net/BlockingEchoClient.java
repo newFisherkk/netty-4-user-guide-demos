@@ -32,13 +32,15 @@ public class BlockingEchoClient {
         int portNumber = Integer.parseInt(args[1]);
 
         try (
-            Socket echoSocket = new Socket(hostName, portNumber);
-            PrintWriter out =
+                Socket echoSocket = new Socket(hostName, portNumber);
+                //拿到服务器的输入，发送消息给服务端
+                PrintWriter out =
                 new PrintWriter(echoSocket.getOutputStream(), true);
-            BufferedReader in =
+                //获取服务端发送的消息
+                BufferedReader in =
                 new BufferedReader(
                     new InputStreamReader(echoSocket.getInputStream()));
-            BufferedReader stdIn =
+                BufferedReader stdIn =
                 new BufferedReader(
                     new InputStreamReader(System.in))
         ) {

@@ -73,11 +73,12 @@ public class NonBlokingEchoServer {
 						socketChannel.configureBlocking(false);
 
 						// 客户端注册到Selector
-						SelectionKey clientKey = socketChannel.register(selector,
-								SelectionKey.OP_WRITE | SelectionKey.OP_READ);
+						SelectionKey clientKey = socketChannel.register(selector, SelectionKey.OP_READ);
 
-						// 分配缓存区
-						ByteBuffer buffer = ByteBuffer.allocate(100);
+						// 分配缓存区 使用的是JVM的堆内存，对于JVM来说，分配比较快，但是读写比较慢，因为需要将操作系统内存里的数据复制到JVM内存
+						ByteBuffer buffer = ByteBuffer.allocate(1024 * 2);
+						//使用的是操作系统级别的内存，分配比较慢，但是数据的读写比较快，因为少了一次从系统内存到JVM内存的复制过程
+//						ByteBuffer.allocateDirect(1024 * 4);
 						clientKey.attach(buffer);
 					}
 
@@ -85,11 +86,22 @@ public class NonBlokingEchoServer {
 					if (key.isReadable()) {
 						SocketChannel client = (SocketChannel) key.channel();
 						ByteBuffer output = (ByteBuffer) key.attachment();
-						client.read(output);
-
-						System.out.println(client.getRemoteAddress() 
-								+ " -> NonBlokingEchoServer：" + output.toString());
-
+						//读取数据写入到到缓冲区
+						int read = client.read(output);
+						//切换为读模式
+						output.flip();
+						// 创建一个limit()大小的字节数组(因为就只有limit这么多个数据可读)
+						byte[] bytes = new byte[output.limit()];
+						//读完之后，缓冲区的postion已经到了limit位置，无法再次写入，需要标记下postion位置，也就是初始位置0
+//						output.mark();
+						// 将读取的数据装进我们的字节数组中
+						output.get(bytes);
+						// 输出数据
+						System.out.println("接受客户端信息:" + new String(bytes));
+//						output.reset();
+						//也可以不加mark，读完之后rewind，然后再compact
+						output.rewind();
+						output.compact();
 						key.interestOps(SelectionKey.OP_WRITE);
 					}
 
@@ -97,12 +109,12 @@ public class NonBlokingEchoServer {
 					if (key.isWritable()) {
 						SocketChannel client = (SocketChannel) key.channel();
 						ByteBuffer output = (ByteBuffer) key.attachment();
+						output.put("[服务端写入]".getBytes());
+						//写模式转换为读模式
 						output.flip();
-						client.write(output);
-
-						System.out.println("NonBlokingEchoServer  -> " 
-								+ client.getRemoteAddress() + "：" + output.toString());
-
+						//读取缓冲区数据写入到客户端管道
+						int write = client.write(output);
+						//拷贝未读取的数据到缓冲区最前面， pos = limit -pos； limit = cap;
 						output.compact();
 
 						key.interestOps(SelectionKey.OP_READ);

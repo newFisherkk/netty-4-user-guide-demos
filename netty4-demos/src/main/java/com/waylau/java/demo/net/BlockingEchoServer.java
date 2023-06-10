@@ -48,21 +48,22 @@ public class BlockingEchoServer {
 		
 		// Java 7 try-with-resource语句
 		try (
-				// 接受客户端建立链接，生成Socket实例
-				Socket clientSocket = serverSocket.accept();
-				PrintWriter out = 
+                // 接受客户端建立链接，生成Socket实例，阻塞，等待客户端连接
+                Socket clientSocket = serverSocket.accept();
+                //拿到客户端的输出，可以写入到客户端
+                PrintWriter out =
 						new PrintWriter(clientSocket.getOutputStream(), true);
-				
-				// 接收客户端的信息
-				BufferedReader in = 
+
+                // 接收客户端的信息
+                BufferedReader in =
 						new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));) {
 			String inputLine;
 			while ((inputLine = in.readLine()) != null) {
 				
 				// 发送信息给客户端
-				out.println(inputLine);
-				System.out.println(
-						"BlockingEchoServer -> " + clientSocket.getRemoteSocketAddress() + ":" + inputLine);
+                out.println("服务端发送消息：" + inputLine);
+                System.out.println(
+                        "BlockingEchoServer -> " + clientSocket.getRemoteSocketAddress() + ":" + inputLine);
 			}
 		} catch (IOException e) {
 			System.out.println(
