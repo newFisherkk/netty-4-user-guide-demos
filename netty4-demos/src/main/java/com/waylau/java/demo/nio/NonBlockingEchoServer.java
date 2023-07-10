@@ -15,11 +15,11 @@ import java.util.Set;
 
 /**
  * Non Bloking Echo Server.
- * 
- * @since 1.0.0 2019年9月28日
+ *
  * @author <a href="https://waylau.com">Way Lau</a>
+ * @since 1.0.0 2019年9月28日
  */
-public class NonBlokingEchoServer {
+public class NonBlockingEchoServer {
 	public static int DEFAULT_PORT = 7;
 
 	/**
@@ -44,7 +44,7 @@ public class NonBlokingEchoServer {
 			selector = Selector.open();
 			serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-			System.out.println("NonBlokingEchoServer已启动，端口：" + port);
+			System.out.println("NonBlockingEchoServer已启动，端口：" + port);
 		} catch (IOException ex) {
 			ex.printStackTrace();
 			return;
@@ -52,16 +52,19 @@ public class NonBlokingEchoServer {
 
 		while (true) {
 			try {
+				//没有事件发生, 线程会阻塞; 有事件发生, 就会让线程继续执行
 				selector.select();
 			} catch (IOException e) {
 				System.out.println("NonBlockingEchoServer异常!" + e.getMessage());
 			}
+			// 通过 selectedKeys 包含了所有发生的事件, accept、 READ 或者 WRITE
 			Set<SelectionKey> readyKeys = selector.selectedKeys();
 			Iterator<SelectionKey> iterator = readyKeys.iterator();
 			while (iterator.hasNext()) {
 				SelectionKey key = iterator.next();
 				iterator.remove();
 				try {
+					//进行事件区分
 					// 可连接
 					if (key.isAcceptable()) {
 						ServerSocketChannel server = (ServerSocketChannel) key.channel();
