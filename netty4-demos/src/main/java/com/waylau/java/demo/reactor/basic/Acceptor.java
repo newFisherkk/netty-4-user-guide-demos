@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 
 /**
@@ -29,7 +31,8 @@ public class Acceptor implements Runnable {
 		try {
 			socketChannel = serverSocketChannel.accept();
 			if (socketChannel != null) {
-				System.out.println(String.format("accpet %s", socketChannel.getRemoteAddress()));
+				String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+				System.out.println(preFix + String.format(" accpet %s", socketChannel.getRemoteAddress()));
 
 				// 这里把客户端通道传给Handler，Handler负责接下来的事件处理
 				new AsyncHandler(socketChannel, selector);

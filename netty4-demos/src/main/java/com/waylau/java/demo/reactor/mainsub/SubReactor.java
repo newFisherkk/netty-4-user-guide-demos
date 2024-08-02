@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public class SubReactor implements Runnable {
 	private final Selector selector;
-	private boolean register = false; // 注册开关表示
+	private boolean register = false; // 是否正在注册
 	private int num; // 序号，也就是Acceptor初始化SubReactor时的下标
 
 	SubReactor(Selector selector, int num) {

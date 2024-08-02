@@ -5,8 +5,11 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Reactor
@@ -35,16 +38,26 @@ public class Reactor implements Runnable {
     @Override
     public void run() {
         try {
+            Thread.currentThread().setName("主线程");
             while (!Thread.interrupted()) {
             	// 就绪事件到达之前，阻塞
-                selector.select(); 
-                
+                selector.select();
+                String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+                try {
+                    System.out.println(preFix + " select 阻塞1s");
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 // 拿到本次select获取的就绪事件
                 Set<SelectionKey> selected = selector.selectedKeys(); 
                 Iterator<SelectionKey> it = selected.iterator();
                 while (it.hasNext()) {
                     // 任务分发
-                    dispatch((SelectionKey) (it.next()));
+                    SelectionKey next = it.next();
+                    preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+                    System.out.println(preFix+ "[Server]获取到事件: " + next.interestOps());
+                    dispatch(next);
                 }
                 selected.clear();
             }
@@ -61,7 +74,7 @@ public class Reactor implements Runnable {
             long s = System.currentTimeMillis();
             r.run();
             long e = System.currentTimeMillis() - s;
-            System.out.println("---------cost time: " + e);
+//            System.out.println("---------cost time: " + e);
         }
     }
 }

@@ -5,8 +5,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Async Handler
@@ -36,11 +39,9 @@ public class AsyncHandler implements Runnable {
 	AsyncHandler(SocketChannel socketChannel, Selector selector) throws IOException {
 		this.socketChannel = socketChannel; // 接收客户端连接
 		this.socketChannel.configureBlocking(false); // 置为非阻塞模式
-		selectionKey = socketChannel.register(selector, 0); // 将该客户端注册到selector
+		selectionKey = socketChannel.register(selector, SelectionKey.OP_READ); // 将该客户端注册到selector
 		selectionKey.attach(this); // 附加处理对象，当前是Handler对象
-		selectionKey.interestOps(SelectionKey.OP_READ); // 连接已完成，接下来就是读取动作
 		this.selector = selector;
-		this.selector.wakeup();
 	}
 
 	@Override
@@ -62,7 +63,8 @@ public class AsyncHandler implements Runnable {
 		if (selectionKey.isValid()) {
 			try {
 				readBuffer.clear();
-
+				String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+				System.out.println(preFix + "ready to read");
 				// read方法结束，意味着本次"读就绪"变为"读完毕"，标记着一次就绪事件的结束
 				int count = socketChannel.read(readBuffer);
 				if (count > 0) {
@@ -101,12 +103,15 @@ public class AsyncHandler implements Runnable {
 
 	// 读入信息后的业务处理
 	private void readWorker() {
-		try {
-			Thread.sleep(5000L);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		System.out.println(String.format("client -> Server： %s", new String(readBuffer.array())));
+		String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+//		try {
+//			System.out.println(preFix + " 读阻塞5s");
+//			Thread.sleep(5000L);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+//		preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+		System.out.println(preFix + String.format(" read msg： %s", new String(readBuffer.array(),0, readBuffer.position())));
 		status = SEND;
 		selectionKey.interestOps(SelectionKey.OP_WRITE); // 注册写事件
 		this.selector.wakeup(); // 唤醒阻塞在select的线程
@@ -115,20 +120,26 @@ public class AsyncHandler implements Runnable {
 	private void sendWorker() {
 		try {
 			sendBuffer.clear();
-			sendBuffer.put(String
-					.format("recived %s from %s",  new String(readBuffer.array()),socketChannel.getRemoteAddress())
-					.getBytes());
+			String msg = String.format("\r\nrecived [%s]", new String(readBuffer.array(),0, readBuffer.position()));
+			String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+			System.out.println(preFix + " send msg: " + msg);
+			sendBuffer.put(msg.getBytes());
 			sendBuffer.flip();
-
-			// write方法结束，意味着本次写就绪变为写完毕，标记着一次事件的结束
+			// write方法结束，意味着本次写就绪变为写完毕，标记着一次事件的结束，write前每次select都会获取到写事件
 			int count = socketChannel.write(sendBuffer);
-
 			if (count < 0) {
 				// 同上，write场景下，取到-1，也意味着客户端断开连接
 				selectionKey.cancel();
 				socketChannel.close();
 				System.out.println("send close");
 			}
+			// 注意write后仍然会获取到写事件？下面找到解释
+			// OP_WRITE事件的就绪条件并不是发生在调用channel的write方法之后，
+			// 而是在当底层缓冲区有空闲空间的情况下。因为写缓冲区在绝大部分时候都是有空闲空间的，
+			// 所以如果你注册了写事件，这会使得写事件一直处于就就绪，选择处理现场就会一直占用着CPU资源。
+			// 所以，只有当你确实有数据要写时再注册写操作，并在写完以后马上取消注册
+			//在大部分情况下，我们直接调用channel的write方法写数据就好了，没必要都用OP_WRITE事件。那么OP_WRITE事件主要是在什么情况下使用的了？
+			//其实OP_WRITE事件主要是在发送缓冲区空间满的情况下使用的
 
 			// 没断开连接，则再次切换到读
 			status = READ;

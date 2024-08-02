@@ -3,6 +3,8 @@ package com.waylau.java.demo.reactor.client;
 import java.io.IOException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Connector
@@ -26,7 +28,8 @@ public class Connector implements Runnable {
 		try {
 			if (socketChannel.finishConnect()) {
 				// 这里连接完成（与服务端的三次握手完成）
-				System.out.println(String.format("connected to %s", socketChannel.getRemoteAddress()));
+				String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+				System.out.println(preFix + String.format(" connected to %s", socketChannel.getRemoteAddress()));
 
 				// 连接建立完成后，接下来的动作交给Handler去处理（读写等）
 				new Handler(socketChannel, selector);

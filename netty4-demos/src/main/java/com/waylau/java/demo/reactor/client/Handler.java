@@ -5,6 +5,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -31,11 +34,11 @@ public class Handler implements Runnable {
 	Handler(SocketChannel socketChannel, Selector selector) throws IOException {
 		this.socketChannel = socketChannel; // 接收客户端连接
 		this.socketChannel.configureBlocking(false); // 置为非阻塞模式
-		selectionKey = socketChannel.register(selector, 0); // 将该客户端注册到selector
+		selectionKey = socketChannel.register(selector, SelectionKey.OP_WRITE); // 将该客户端注册到selector
 		selectionKey.attach(this); // 附加处理对象，当前是Handler对象
-		selectionKey.interestOps(SelectionKey.OP_WRITE); // 建连已完成，那么接下来就是读取动作
-		selector.wakeup(); // 唤起select阻塞
-	}
+//		selectionKey.interestOps(SelectionKey.OP_WRITE); // 建连已完成，那么接下来就是写入动作
+//		selector.wakeup(); // 唤起select阻塞
+    }
 
 	@Override
 	public void run() {
@@ -68,7 +71,10 @@ public class Handler implements Runnable {
 			sendBuffer.clear();
 			int count = counter.incrementAndGet();
 			if (count <= 10) {
-				sendBuffer.put(String.format("msg is %s", count).getBytes());
+				String msg = String.format("msg is %s", count);
+				String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+				System.out.println(preFix + " send msg: " + msg);
+				sendBuffer.put(msg.getBytes());
 				sendBuffer.flip(); // 切换到读模式，用于让通道读到buffer里的数据
 				socketChannel.write(sendBuffer);
 
@@ -86,7 +92,8 @@ public class Handler implements Runnable {
 		if (selectionKey.isValid()) {
 			readBuffer.clear(); // 切换成buffer的写模式，用于让通道将自己的内容写入到buffer里
 			socketChannel.read(readBuffer);
-			System.out.println(String.format("Server -> Client: %s", new String(readBuffer.array())));
+			String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+			System.out.println(preFix + String.format(" read msg: %s", new String(readBuffer.array(),0, readBuffer.position())));
 
 			// 收到服务端的响应后，再继续往服务端发送数据
 			status = SEND;

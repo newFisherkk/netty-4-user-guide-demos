@@ -5,6 +5,8 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -40,6 +42,7 @@ public class NIOClient implements Runnable {
     @Override
     public void run() {
         try {
+            Thread.currentThread().setName("主线程");
             while (!Thread.interrupted()) {
             	 //就绪事件到达之前，阻塞
                 selector.select();
@@ -49,7 +52,10 @@ public class NIOClient implements Runnable {
                 Iterator<SelectionKey> it = selected.iterator();
                 while (it.hasNext()) {
                     //这里进行任务分发
-                    dispatch((SelectionKey) (it.next()));
+                    SelectionKey next = it.next();
+                    String preFix = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()) + "["+Thread.currentThread().getName()+"]";
+                    System.out.println(preFix + "[Client]获取到事件: " + next.interestOps());
+                    dispatch(next);
                 }
                 selected.clear();
             }
